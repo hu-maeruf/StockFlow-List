@@ -1,10 +1,11 @@
 import express from "express";
-import db from "./config/db.js"
+import db from "./config/db.js";
+import { route } from "./modules/auth/auth.route.js";
 
 const app = express();
 
 app.use(express.json());
-
+app.use("/auth", route);
 
 app.get("/", async (req, res) => {
   try {
