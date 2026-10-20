@@ -7,25 +7,35 @@ export class AppError extends Error {
   }
 }
 
-export const normalizeInput = (name, email, password) => {
-  if (typeof (name) !== "string" || typeof (email) !== "string" || typeof (password) !== "string") {
-    throw new AppError(400, "name, email, and password are required");
+function normalizeEmail(email) {
+  if (typeof (email) !== "string") {
+    throw new AppError(400, "Invalid Email")
+  }
+
+  email = email.trim().toLowerCase();
+
+  if (email.length > 254 || !EMAIL_REGEX.test(email)) {
+    throw new AppError(400, "Invalid Email Format");
+  }
+
+  return email;
+};
+
+export const normalizeRegister = (name, e_mail, password) => {
+  if (typeof (name) !== "string" || typeof (password) !== "string") {
+    throw new AppError(400, "Name, Email and Password Required");
 
   }
 
+  const email = normalizeEmail(e_mail)
   name = name.trim()
-  email = email.trim().toLowerCase()
 
   if (name.length === 0 || email.length === 0) {
-    throw new AppError(400, "name and email are required");
+    throw new AppError(400, "Name, Email and Password Required");
   }
 
   if (name.length > 100) {
-    throw new AppError(400, "name is too long");
-  }
-
-  if (email.length > 254 || !EMAIL_REGEX.test(email)) {
-    throw new AppError(400, "Invalid email");
+    throw new AppError(400, "Name is too long");
   }
 
   if (password.length < 8 || Buffer.byteLength(password, "utf8") > 72) {
@@ -33,4 +43,28 @@ export const normalizeInput = (name, email, password) => {
   }
 
   return { name, email, password }
-}
+};
+
+export function normalizeLogin(e_mail, password) {
+  const email = normalizeEmail(e_mail);
+  if (typeof (password) !== "string") {
+    throw new AppError(400, "Invalid Email or Password");
+
+  }
+
+  if (password.length === 0 || email.length === 0) {
+    throw new AppError(400, "Email and Password Required");
+  }
+
+  if (Buffer.byteLength(password, "utf8") > 72) {
+    throw new AppError(400, "Invalid Email or Password");
+  }
+
+  return { email, password }
+};
+
+export const validateReqBody = (req) => {
+  if (req.body === null || typeof req.body !== "object") {
+    throw new AppError(400, "Request body must be a JSON object");
+  }
+};
