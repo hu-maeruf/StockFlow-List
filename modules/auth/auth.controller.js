@@ -4,7 +4,8 @@ import { AppError, normalizeRegister, normalizeLogin, validateReqBody } from "./
 import jwt from "jsonwebtoken";
 import { env } from "../../config/env.js";
 
-const dummyHash = await bcrypt.hash("dummy-password", 10);
+const SALT_ROUND = 10
+const dummyHash = await bcrypt.hash("dummy-password", SALT_ROUND);
 
 export const register = async (req, res) => {
   try {
@@ -13,7 +14,7 @@ export const register = async (req, res) => {
 
     const input = normalizeRegister(name, email, password);
 
-    const hashedPassword = await bcrypt.hash(input.password, 10);
+    const hashedPassword = await bcrypt.hash(input.password, SALT_ROUND);
     await db.query("INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3)", [input.name, input.email, hashedPassword]);
 
     return res.status(201).json({
@@ -73,6 +74,25 @@ export const login = async (req, res) => {
       })
     }
     console.error(error)
+    return res.status(500).json({
+      message: "Unexpected Error Occurred"
+    })
+  }
+};
+
+export const getMe = async (req, res) => {
+  try {
+    const user = await db.query("SELECT user_id, name, email FROM users WHERE user_id = $1", [req.user.userID]);
+
+    if (!user.rows[0]) {
+      return res.status(401).json({
+        message: "User Not Found"
+      })
+    }
+
+    res.status(200).json(user.rows[0])
+  } catch (error) {
+    console.error(error);
     return res.status(500).json({
       message: "Unexpected Error Occurred"
     })
