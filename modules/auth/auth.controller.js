@@ -1,6 +1,8 @@
 import db from "../../config/db.js";
 import bcrypt from "bcrypt";
-import { AppError, normalizeRegister, normalizeLogin, validateReqBody } from "./auth.validation.js";
+import AppError from "../../utils/AppError.js";
+import reqBody from "../../utils/reqBody.js";
+import { normalizeRegister, normalizeLogin } from "./auth.validation.js";
 import jwt from "jsonwebtoken";
 import { env } from "../../config/env.js";
 
@@ -9,7 +11,7 @@ const dummyHash = await bcrypt.hash("dummy-password", SALT_ROUND);
 
 export const register = async (req, res) => {
   try {
-    validateReqBody(req);
+    reqBody(req);
     const { name, email, password } = req.body;
 
     const input = normalizeRegister(name, email, password);
@@ -40,11 +42,11 @@ export const register = async (req, res) => {
       message: "Unexpected Error Occurred"
     })
   }
-};
+}
 
 export const login = async (req, res) => {
   try {
-    validateReqBody(req);
+    reqBody(req);
     const { email, password } = req.body;
     const input = normalizeLogin(email, password);
 
@@ -57,14 +59,14 @@ export const login = async (req, res) => {
       return res.status(401).json({
         message: "Invalid Email or Password"
       })
-    };
+    }
 
     const token = jwt.sign({
       userID: user.user_id,
       email: user.email
     }, env.JWT_SECRET,
       { expiresIn: "10m" }
-    );
+    )
 
     res.status(200).json({ token });
   } catch (error) {
@@ -78,7 +80,7 @@ export const login = async (req, res) => {
       message: "Unexpected Error Occurred"
     })
   }
-};
+}
 
 export const getMe = async (req, res) => {
   try {
@@ -97,4 +99,4 @@ export const getMe = async (req, res) => {
       message: "Unexpected Error Occurred"
     })
   }
-};
+}

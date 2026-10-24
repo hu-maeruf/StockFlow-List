@@ -1,11 +1,6 @@
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import AppError from "../../utils/AppError.js";
 
-export class AppError extends Error {
-  constructor(statusCode, message) {
-    super(message);
-    this.statusCode = statusCode;
-  }
-}
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function normalizeEmail(email) {
   if (typeof (email) !== "string") {
@@ -61,10 +56,4 @@ export function normalizeLogin(e_mail, password) {
   }
 
   return { email, password }
-};
-
-export const validateReqBody = (req) => {
-  if (req.body === null || typeof req.body !== "object") {
-    throw new AppError(400, "Request body must be a JSON object");
-  }
 };
