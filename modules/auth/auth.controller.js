@@ -4,6 +4,8 @@ import { AppError, normalizeRegister, normalizeLogin, validateReqBody } from "./
 import jwt from "jsonwebtoken";
 import { env } from "../../config/env.js";
 
+const dummyHash = await bcrypt.hash("dummy-password", 10);
+
 export const register = async (req, res) => {
   try {
     validateReqBody(req);
@@ -48,14 +50,9 @@ export const login = async (req, res) => {
     const userExist = await db.query("SELECT user_id, email, password_hash FROM users WHERE email = $1", [input.email]);
 
     const user = userExist.rows[0];
-    if (!user) {
-      return res.status(401).json({
-        message: "Invalid Email or Password"
-      })
-    };
-
-    const validPassword = await bcrypt.compare(password, user.password_hash);
-    if (!validPassword) {
+    const compPassword = user ? user.password_hash : dummyHash;
+    const validPassword = await bcrypt.compare(password, compPassword);
+    if (!user || !validPassword) {
       return res.status(401).json({
         message: "Invalid Email or Password"
       })
@@ -80,4 +77,4 @@ export const login = async (req, res) => {
       message: "Unexpected Error Occurred"
     })
   }
-}
+};
