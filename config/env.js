@@ -30,4 +30,5 @@ export const env = {
   DB_HOST: required("DB_HOST"),
   DB_USER: required("DB_USER"),
   DB_PASSWORD: required("DB_PASSWORD"),
+  JWT_SECRET: required("JWT_SECRET")
 }
