@@ -8,24 +8,16 @@ export const createOrg = async (req, res) => {
     reqBody(req);
     const { name, slug } = req.body;
     const input = validateOrgRegister(name, slug);
-    await registerOrg(input);
+    await registerOrg(input.name, input.slug, req.user.userID);
     return res.status(201).json({
       message: "Organization Registered"
     });
   } catch (error) {
-
-    if (error.code === "23505") {
-      return res.status(409).json({
-        message: "slug should be unique"
-      })
-    }
-
     if (error instanceof AppError) {
       return res.status(error.statusCode).json({
         message: error.message
       })
     }
-
     console.error(error);
     return res.status(500).json({
       message: "Unexpected Error Occurred"
