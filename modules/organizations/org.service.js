@@ -23,3 +23,12 @@ export const registerOrg = async (name, slug, userId) => {
     client.release();
   }
 }
+
+export const getOrgID = async (orgID) => {
+  try {
+    const orgInfo = await db.query("SELECT name, slug FROM organizations WHERE organization_id = $1", [orgID]);
+    return orgInfo.rows[0];
+  } catch (error) {
+    throw error;
+  }
+}
