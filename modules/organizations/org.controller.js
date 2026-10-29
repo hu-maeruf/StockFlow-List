@@ -1,7 +1,7 @@
 import reqBody from "../../utils/reqBody.js";
 import AppError from "../../utils/AppError.js";
 import { validateOrgRegister, validateMemRegister } from "./org.validation.js";
-import { getOrgID, regMem, registerOrg } from "./org.service.js";
+import { getMem, getOrgID, regMem, registerOrg } from "./org.service.js";
 
 export const createOrg = async (req, res) => {
   try {
@@ -55,6 +55,24 @@ export const registerMember = async (req, res) => {
     return res.status(201).json({
       message: "User added to organization successfully"
     });
+  } catch (error) {
+    if (error instanceof AppError) {
+      return res.status(error.statusCode).json({
+        message: error.message
+      })
+    }
+    console.error(error);
+    return res.status(500).json({
+      message: "Unexpected Error Occurred"
+    })
+  }
+}
+
+export const getMembers = async (req, res) => {
+  try {
+    const orgID = req.params.organization_id;
+    const result = await getMem(orgID);
+    return res.status(200).json(result);
   } catch (error) {
     if (error instanceof AppError) {
       return res.status(error.statusCode).json({

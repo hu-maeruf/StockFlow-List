@@ -51,3 +51,11 @@ export const regMem = async (email, role, orgID) => {
     throw error;
   }
 }
+
+export const getMem = async (orgID) => {
+  const result = await db.query(`
+    SELECT users.user_id, users.name, org_mem.role FROM users 
+    JOIN organization_members AS org_mem ON users.user_id = org_mem.user_id
+    WHERE org_mem.organization_id = $1 ORDER BY users.user_id`, [orgID]);
+  return result.rows;
+}
