@@ -13,5 +13,6 @@ const db = new Pool(
 );
 
 export default {
-  query: (text, param) => db.query(text, param)
+  query: (text, param) => db.query(text, param),
+  connect: () => db.connect()
 };
