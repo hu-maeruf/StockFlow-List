@@ -36,10 +36,11 @@ export const loginUser = async ({ email, password }) => {
   )
 }
 
-export const getProfile = async () => {
+export const getProfile = async (req) => {
   const user = await db.query("SELECT user_id, name, email FROM users WHERE user_id = $1", [req.user.userID]);
 
   if (!user.rows[0]) {
     throw new AppError(401, "User Not Found");
   }
+  return user.rows[0];
 }

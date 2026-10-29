@@ -54,8 +54,8 @@ export const login = async (req, res) => {
 
 export const getMe = async (req, res) => {
   try {
-    const user = getProfile();
-    res.status(200).json(user.rows[0]);
+    const user = await getProfile(req);
+    res.status(200).json(user);
   } catch (error) {
     console.error(error);
     return res.status(500).json({
