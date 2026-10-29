@@ -32,3 +32,22 @@ export const getOrgID = async (orgID) => {
     throw error;
   }
 }
+
+export const regMem = async (email, role, orgID) => {
+  try {
+    const result = await db.query("SELECT user_id FROM users WHERE email = $1", [email]);
+
+    if (result.rows.length === 0) {
+      throw new AppError(404, "User Not Found");
+    } // This user haven't registered
+
+    const newUserID = result.rows[0].user_id;
+
+    await db.query("INSERT INTO organization_members (organization_id, user_id, role) VALUES ($1, $2, $3)", [orgID, newUserID, role]);
+  } catch (error) {
+    if (error.code === "23505") {
+      throw new AppError(409, "User is already member");
+    }
+    throw error;
+  }
+}
