@@ -41,3 +41,29 @@ export const verifyMembership = async (userID, orgID, allowedRoles) => {
   }
   return membership;
 }
+
+export const requireRoleFromHeader = (...allowedRoles) => {
+  return async (req, res, next) => {
+    try {
+      const orgID = Number(req.headers["x-organization-id"]);
+      const userID = req.user.userID;
+      if (!orgID) {
+        throw new AppError(400, "X-Organization-Id header is required")
+      }
+      const memRole = await verifyMembership(userID, orgID, allowedRoles);
+      req.role = memRole.role;
+      req.orgID = orgID;
+      return next();
+    } catch (error) {
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json({
+          message: error.message
+        })
+      }
+      console.error(error)
+      return res.status(500).json({
+        message: "Unexpected Error Occurred"
+      })
+    }
+  }
+}
