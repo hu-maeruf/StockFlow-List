@@ -1,4 +1,4 @@
-import { addProducts } from "./product.service.js";
+import { addProducts, retrieveProducts } from "./product.service.js";
 import { validateProduct } from "./product.validation.js";
 import reqBody from "../../utils/reqBody.js"
 import AppError from "../../utils/AppError.js";
@@ -24,6 +24,21 @@ export const postProduct = async (req, res) => {
         message: "product sku must be unique"
       })
     }
+    console.error(error);
+    return res.status(500).json({
+      message: "Unexpected Error Occurred"
+    })
+  }
+}
+
+export const getProducts = async (req, res) => {
+  try {
+    const orgID = req.orgID;
+    const prodcuts = await retrieveProducts(orgID);
+    return res.status(200).json({
+      "products": prodcuts
+    })
+  } catch (error) {
     console.error(error);
     return res.status(500).json({
       message: "Unexpected Error Occurred"
