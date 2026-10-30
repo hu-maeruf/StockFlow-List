@@ -9,3 +9,9 @@ export const retrieveProducts = async (orgID) => {
 
   return result.rows;
 }
+
+export const retrieveProductByID = async (orgID, prID) => {
+  const result = await db.query("SELECT product_name, price FROM products WHERE organization_id = $1 AND product_id = $2", [orgID, prID]);
+
+  return result.rows;
+}
