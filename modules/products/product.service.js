@@ -5,13 +5,13 @@ export const addProducts = async (pr_sku, pr_name, pr_price, orgID) => {
 }
 
 export const retrieveProducts = async (orgID) => {
-  const result = await db.query("SELECT product_name, price FROM products WHERE organization_id = $1", [orgID]);
+  const result = await db.query("SELECT product_id, product_name, sku, price FROM products WHERE organization_id = $1", [orgID]);
 
   return result.rows;
 }
 
 export const retrieveProductByID = async (orgID, prID) => {
-  const result = await db.query("SELECT product_name, price FROM products WHERE organization_id = $1 AND product_id = $2", [orgID, prID]);
+  const result = await db.query("SELECT product_id, product_name, sku, price FROM products WHERE organization_id = $1 AND product_id = $2", [orgID, prID]);
 
   return result.rows;
 }

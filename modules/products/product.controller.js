@@ -10,7 +10,7 @@ export const postProduct = async (req, res) => {
     const input = validateProduct(pr_sku, product_name, pr_price);
     const orgID = req.orgID;
     await addProducts(input.pr_sku, input.pr_name, input.pr_price, orgID);
-    return res.status(200).json({
+    return res.status(201).json({
       message: "Product Added"
     })
   } catch (error) {
@@ -49,7 +49,12 @@ export const getProducts = async (req, res) => {
 export const getProductByID = async (req, res) => {
   try {
     const orgID = req.orgID;
-    const prID = req.params.productId;
+    const prID = Number(req.params.productId);
+    if (!Number.isSafeInteger(prID) || prID <= 0) {
+      return res.status(404).json({
+        message: "Product Not Found"
+      })
+    }
     const prodcuts = await retrieveProductByID(orgID, prID);
     if (prodcuts.length === 0) {
       return res.status(404).json({

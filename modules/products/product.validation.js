@@ -6,7 +6,7 @@ export const validateProduct = (pr_sku, pr_name, pr_price) => {
   }
 
   pr_name = pr_name.trim().toLowerCase();
-  pr_sku = pr_sku.trim().toLowerCase();
+  pr_sku = pr_sku.trim();
 
   if (!pr_name || !pr_sku || !pr_price) {
     throw new AppError(400, "product_name, pr_sku and pr_price required");
