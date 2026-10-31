@@ -15,3 +15,8 @@ export const retrieveProductByID = async (orgID, prID) => {
 
   return result.rows;
 }
+
+export const updatePatch = async (values, updates) => {
+  const result = await db.query(`UPDATE products SET ${updates.join(", ")} WHERE product_id = $${values.length - 1} AND organization_id = $${values.length} RETURNING product_id, product_name, sku, price, product_status`, values);
+  return result.rows;
+}

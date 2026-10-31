@@ -1,5 +1,5 @@
-import { addProducts, retrieveProducts, retrieveProductByID } from "./product.service.js";
-import { validateProduct } from "./product.validation.js";
+import { addProducts, retrieveProducts, retrieveProductByID, updatePatch } from "./product.service.js";
+import { updatedValues, validateProduct } from "./product.validation.js";
 import reqBody from "../../utils/reqBody.js"
 import AppError from "../../utils/AppError.js";
 
@@ -65,6 +65,44 @@ export const getProductByID = async (req, res) => {
       "products": prodcuts
     })
   } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Unexpected Error Occurred"
+    })
+  }
+}
+
+export const patchProduct = async (req, res) => {
+  try {
+    reqBody(req);
+    const prID = Number(req.params.productId);
+    if (!Number.isSafeInteger(prID) || prID <= 0) {
+      return res.status(404).json({
+        message: "Product Not Found"
+      })
+    }
+    const orgID = req.orgID;
+    const { values, updates } = updatedValues(req.body, prID, orgID);
+    const result = await updatePatch(values, updates);
+    if (result.length === 0) {
+      return res.status(404).json({
+        message: "Product not found"
+      })
+    }
+    return res.status(200).json(result);
+  } catch (error) {
+
+    if (error.code === "23505") {
+      return res.status(409).json({
+        message: "product sku must be unique"
+      })
+    }
+
+    if (error instanceof AppError) {
+      return res.status(error.statusCode).json({
+        message: error.message
+      })
+    }
     console.error(error);
     return res.status(500).json({
       message: "Unexpected Error Occurred"
