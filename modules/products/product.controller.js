@@ -1,4 +1,4 @@
-import { addProducts, retrieveProducts, retrieveProductByID, updatePatch } from "./product.service.js";
+import { addProducts, retrieveProducts, retrieveProductByID, updatePatch, delProduct } from "./product.service.js";
 import { updatedValues, validateProduct } from "./product.validation.js";
 import reqBody from "../../utils/reqBody.js"
 import AppError from "../../utils/AppError.js";
@@ -86,7 +86,7 @@ export const patchProduct = async (req, res) => {
     const result = await updatePatch(values, updates);
     if (result.length === 0) {
       return res.status(404).json({
-        message: "Product not found"
+        message: "Product Not Found"
       })
     }
     return res.status(200).json(result);
@@ -103,6 +103,32 @@ export const patchProduct = async (req, res) => {
         message: error.message
       })
     }
+    console.error(error);
+    return res.status(500).json({
+      message: "Unexpected Error Occurred"
+    })
+  }
+}
+
+export const deleteProduct = async (req, res) => {
+  try {
+    const orgID = req.orgID;
+    const prID = Number(req.params.productId);
+    if (!Number.isSafeInteger(prID) || prID <= 0) {
+      return res.status(404).json({
+        message: "Product Not Found"
+      })
+    }
+    const result = await delProduct(prID, orgID);
+    if (result.length === 0) {
+      return res.status(404).json({
+        message: "Product Not Found"
+      })
+    }
+    return res.status(200).json({
+      message: "Product deleted"
+    })
+  } catch (error) {
     console.error(error);
     return res.status(500).json({
       message: "Unexpected Error Occurred"

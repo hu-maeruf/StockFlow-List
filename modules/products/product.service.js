@@ -20,3 +20,8 @@ export const updatePatch = async (values, updates) => {
   const result = await db.query(`UPDATE products SET ${updates.join(", ")} WHERE product_id = $${values.length - 1} AND organization_id = $${values.length} RETURNING product_id, product_name, sku, price, product_status`, values);
   return result.rows;
 }
+
+export const delProduct = async (prID, orgID) => {
+  const result = await db.query("DELETE FROM products WHERE product_id = $1 AND organization_id = $2 RETURNING product_id", [prID, orgID]);
+  return result.rows;
+}
