@@ -1,5 +1,5 @@
 import reqBody from "../../utils/reqBody.js";
-import { addWarehouse } from "./warehouse.service.js";
+import { addWarehouse, retrieveWarehouses } from "./warehouse.service.js";
 import { validateWarehouse } from "./warehouse.validation.js";
 import AppError from "../../utils/AppError.js"
 
@@ -20,6 +20,26 @@ export const postWarehouse = async (req, res) => {
       })
     }
 
+    console.error(error);
+    return res.status(500).json({
+      message: "Unexpected Error Occurred"
+    })
+  }
+}
+
+export const getWarehouses = async (req, res) => {
+  try {
+    const orgID = req.orgID;
+    const warehouses = await retrieveWarehouses(orgID);
+    return res.status(200).json({
+      warehouses
+    })
+  } catch (error) {
+    if (error instanceof AppError) {
+      return res.status(error.statusCode).json({
+        message: error.message
+      })
+    }
     console.error(error);
     return res.status(500).json({
       message: "Unexpected Error Occurred"
