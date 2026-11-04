@@ -5,7 +5,14 @@ export const addProducts = async (pr_sku, pr_name, pr_price, orgID) => {
 }
 
 export const retrieveProducts = async (orgID) => {
-  const result = await db.query("SELECT product_id, product_name, sku, price FROM products WHERE organization_id = $1", [orgID]);
+  const result = await db.query("SELECT product_id, product_name, sku, price, product_status FROM products WHERE organization_id = $1 ORDER BY product_id LIMIT 10 OFFSET 0", [orgID]);
+
+  return result.rows;
+}
+
+export const filterProducts = async ({ values, placeholderSql, sortVal, ordVal }) => {
+  const result = await db.query(`SELECT product_id, product_name, sku, price, product_status FROM products 
+    WHERE ${placeholderSql.join(" AND ")} ORDER BY ${sortVal} ${ordVal}, product_id ASC LIMIT $${values.length - 1} OFFSET $${values.length}`, values);
 
   return result.rows;
 }

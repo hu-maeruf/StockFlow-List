@@ -1,5 +1,5 @@
-import { addProducts, retrieveProducts, retrieveProductByID, updatePatch, delProduct } from "./product.service.js";
-import { updatedValues, validateProduct } from "./product.validation.js";
+import { addProducts, retrieveProducts, retrieveProductByID, updatePatch, delProduct, filterProducts } from "./product.service.js";
+import { getProductByFilter, updatedValues, validateProduct } from "./product.validation.js";
 import reqBody from "../../utils/reqBody.js"
 import AppError from "../../utils/AppError.js";
 
@@ -34,11 +34,25 @@ export const postProduct = async (req, res) => {
 export const getProducts = async (req, res) => {
   try {
     const orgID = req.orgID;
-    const prodcuts = await retrieveProducts(orgID);
+    const key = Object.keys(req.query);
+    const input = req.query;
+    if (key.length > 0) {
+      const result = getProductByFilter(input, key, orgID);
+      const products = await filterProducts(result);
+      return res.status(200).json({
+        "products": products
+      })
+    }
+    const products = await retrieveProducts(orgID);
     return res.status(200).json({
-      "products": prodcuts
+      "products": products
     })
   } catch (error) {
+    if (error instanceof AppError) {
+      return res.status(error.statusCode).json({
+        message: error.message
+      })
+    }
     console.error(error);
     return res.status(500).json({
       message: "Unexpected Error Occurred"
