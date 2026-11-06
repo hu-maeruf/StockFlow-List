@@ -2,7 +2,7 @@ import AppError from "../../utils/AppError.js";
 
 export const validateWarehouse = (wah_name, wah_loc) => {
   if (typeof wah_name !== "string" || typeof wah_loc !== "string") {
-    throw new AppError(400, "warehouse_name and warehouse_loc required required");
+    throw new AppError(400, "warehouse_name and warehouse_loc required");
   }
 
   wah_name = wah_name.trim().toLowerCase();
