@@ -4,6 +4,7 @@ import { orgRoute } from "./modules/organizations/org.route.js";
 import { productRoute } from "./modules/products/product.route.js";
 import { warehouseRoute } from "./modules/warehouses/warehouse.route.js";
 import { customerRoute } from "./modules/customers/customer.route.js";
+import { inventoryRoute } from "./modules/inventory/inventory.route.js";
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use("/", orgRoute);
 app.use("/", productRoute);
 app.use("/", warehouseRoute);
 app.use("/", customerRoute);
+app.use("/", inventoryRoute);
 
 app.get("/health", (req, res) => {
   res.status(200).json({
