@@ -46,3 +46,9 @@ export const addInventory = async (product_id, warehouse_id, quantity, orgId) =>
     client.release();
   }
 }
+
+export const retrieveInventory = async ({values, placeholderSql}) => {
+  const result = await db.query(`SELECT inventory_id, warehouse_id, product_id, quantity_on_hand, quantity_reserved, quantity_on_hand - quantity_reserved AS quantity_available FROM inventory WHERE ${placeholderSql.join(" AND ")} ORDER BY inventory_id`, values);
+
+  return result.rows;
+}

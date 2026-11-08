@@ -1,6 +1,7 @@
 import AppError from "../../utils/AppError.js";
 
 const MAX_INT = 2000000000;
+const DIGITS_ONLY = /^\d+$/;
 
 export const validateInventory = (product_id, warehouse_id, quantity) => {
 
@@ -21,4 +22,39 @@ export const validateInventory = (product_id, warehouse_id, quantity) => {
   }
 
   return { product_id, warehouse_id, quantity }
+}
+
+const filtVal = (raw, key) => {
+  if (typeof raw !== "string" || !DIGITS_ONLY.test(raw)) {
+    throw new AppError(400, `${key} should be a positive whole number`);
+  }
+  const value = Number(raw);
+  if (value <= 0 || value > MAX_INT) {
+    throw new AppError(400, `${key} must be between 1 and ${MAX_INT}`);
+  }
+  return value;
+};
+
+const filtObject = {
+  product_id: {validate: filtVal, tempSql: "product_id ="},
+  warehouse_id: {validate: filtVal, tempSql: "warehouse_id ="}
+}
+
+export const validateGetInventory = (query, orgId) => {
+  const keys = Object.keys(query);
+  const unknown = Object.keys(query).filter((k) => !Object.hasOwn(filtObject, k));
+
+  if (unknown.length > 0){
+    throw new AppError(400, `Invalid query: ${unknown.join(", ")}`);
+  }
+  const values = [orgId];
+  const placeholderSql = [`organization_id = $${values.length}`];
+
+  for (const key of keys){
+    const {validate, tempSql} = filtObject[key];
+    values.push(validate(query[key], key));
+    placeholderSql.push(`${tempSql} $${values.length}`);
+  }
+
+  return { values, placeholderSql }
 }
