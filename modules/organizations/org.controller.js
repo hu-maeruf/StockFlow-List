@@ -27,7 +27,7 @@ export const createOrg = async (req, res) => {
 
 export const getOrg = async (req, res) => {
   try {
-    const orgID = req.params.organization_id;
+    const orgID = req.orgID;
     const orgInfo = await getOrgID(orgID);
     return res.status(200).json({
       message: orgInfo
@@ -48,7 +48,7 @@ export const getOrg = async (req, res) => {
 export const registerMember = async (req, res) => {
   try {
     reqBody(req);
-    const orgID = req.params.organization_id;
+    const orgID = req.orgID;
     const { email, role } = req.body;
     const input = validateMemRegister(email, role);
     await regMem(input.email, input.role, orgID);
@@ -70,7 +70,7 @@ export const registerMember = async (req, res) => {
 
 export const getMembers = async (req, res) => {
   try {
-    const orgID = req.params.organization_id;
+    const orgID = req.orgID;
     const result = await getMem(orgID);
     return res.status(200).json(result);
   } catch (error) {
