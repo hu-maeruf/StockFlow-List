@@ -1,7 +1,7 @@
 import reqBody from "../../utils/reqBody.js";
 import AppError from "../../utils/AppError.js";
 import { validateGetInventory, validateInventory, validateTransfer } from "./inventory.validation.js";
-import { addInventory, retrieveInventory, trasnferQuantity } from "./inventory.service.js";
+import { addInventory, retrieveInventory, trasnferQuantity, retrieveInventoryMovement } from "./inventory.service.js";
 
 export const postInventory = async (req, res) => {
   try {
@@ -64,6 +64,24 @@ export const postTransfer = async (req, res) => {
     }
 
     console.error(error.message);
+    return res.status(500).json({
+      message: "Unexpected Error Occurred"
+    })
+  }
+}
+
+export const getInventoryMovement = async (req, res) => {
+  try {
+    const input = validateGetInventory(req.query, req.orgID);
+    const inventory = await retrieveInventoryMovement(input);
+    return res.status(200).json({inventory});
+  } catch (error) {
+    if (error instanceof AppError) {
+      return res.status(error.statusCode).json({
+        message: error.message
+      })
+    }
+    console.error(error);
     return res.status(500).json({
       message: "Unexpected Error Occurred"
     })

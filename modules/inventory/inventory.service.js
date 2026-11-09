@@ -119,3 +119,9 @@ export const trasnferQuantity = async (source_ware_id, destination_ware_id, prod
     client.release();
   }
 }
+
+export const retrieveInventoryMovement = async ({values, placeholderSql}) => {
+  const result = await db.query(`SELECT warehouse_id, product_id, tr_type, quantity, created_at FROM inventory_movements WHERE ${placeholderSql.join(" AND ")} ORDER BY created_at`, values);
+
+  return result.rows;
+}
