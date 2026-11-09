@@ -17,7 +17,7 @@ CREATE TABLE inventory_movements(
   organization_id INT NOT NULL REFERENCES organizations(organization_id),
   product_id INT NOT NULL REFERENCES products(product_id),
   warehouse_id INT NOT NULL REFERENCES warehouses(warehouse_id),
-  tr_type VARCHAR(30) NOT NULL CHECK (tr_type IN ('stock_in', 'reservation', 'reservation_release', 'adjustment', 'fulfillment')),
+  tr_type VARCHAR(30) NOT NULL CHECK (tr_type IN ('stock_in', 'reservation', 'reservation_release', 'adjustment', 'fulfillment', 'transfer-in', 'transfer-out')),
   quantity INT NOT NULL CHECK (quantity > 0),
   reference_id INT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
