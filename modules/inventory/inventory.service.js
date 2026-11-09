@@ -81,7 +81,7 @@ export const trasnferQuantity = async (source_ware_id, destination_ware_id, prod
 
     await client.query("INSERT INTO inventory (organization_id, product_id, warehouse_id, quantity_on_hand) VALUES ($1, $2, $3, $4) ON CONFLICT (warehouse_id, product_id) DO NOTHING", [orgId, product_id, destination_ware_id, 0]);
 
-    const inventory = await client.query("SELECT inventory_id, quantity_on_hand, quantity_reserved FROM inventory WHERE organization_id = $1 AND product_id = $2 AND warehouse_id IN ($3, $4) ORDER BY warehouse_id ASC FOR UPDATE", [orgId, product_id, source_ware_id, destination_ware_id]);
+    const inventory = await client.query("SELECT inventory_id, quantity_on_hand, quantity_reserved, warehouse_id FROM inventory WHERE organization_id = $1 AND product_id = $2 AND warehouse_id IN ($3, $4) ORDER BY warehouse_id ASC FOR UPDATE", [orgId, product_id, source_ware_id, destination_ware_id]);
 
     if(inventory.rowCount !== 2){
       throw new AppError(404, "Inventory Not Found");
@@ -101,7 +101,7 @@ export const trasnferQuantity = async (source_ware_id, destination_ware_id, prod
       throw new AppError(400, "Total quantity is too large")
     }
 
-    const transfer = await client.query("UPDATE inventory SET quantity_on_hand = CASE WHEN warehouse_id = $3 THEN $5 WHEN warehouse_id = $4 THEN $6 END, updated_at = now() WHERE organization_id = $1 AND product_id = $2 AND warehouse_id IN ($3, $4) AND ((warehouse_id = $3 AND quantity_on_hand - quantity_reserved >= $7) OR warehouse_id = $4 AND quantity_on_hand <= $8 - $7) RETURNING inventory_id, warehouse_id, quantity_on_hand, quantity_reserved, quantity_on_hand - quantity_reserved AS quantity_available", [orgId, product_id, source_ware_id, destination_ware_id, source_amount, dest_amount, quantity, MAX_INT]);
+    const transfer = await client.query("UPDATE inventory SET quantity_on_hand = CASE WHEN warehouse_id = $3 THEN $5::integer WHEN warehouse_id = $4 THEN $6::integer END, updated_at = now() WHERE organization_id = $1 AND product_id = $2 AND warehouse_id IN ($3, $4) AND ((warehouse_id = $3 AND quantity_on_hand - quantity_reserved >= $7) OR warehouse_id = $4 AND quantity_on_hand <= $8 - $7) RETURNING inventory_id, warehouse_id, quantity_on_hand, quantity_reserved, quantity_on_hand - quantity_reserved AS quantity_available", [orgId, product_id, source_ware_id, destination_ware_id, source_amount, dest_amount, quantity, MAX_INT]);
 
     if (transfer.rowCount !== 2){
       throw new AppError(409, "Transfer could not be completed");
