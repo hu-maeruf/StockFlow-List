@@ -14,7 +14,8 @@ CREATE TABLE warehouses(
 	warehouse_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 	organization_id INT NOT NUll REFERENCES organizations(organization_id),
 	warehouse_name VARCHAR(100) NOT NULL,
-	warehouse_loc VARCHAR(100)
+	warehouse_loc VARCHAR(100),
+	UNIQUE (organization_id, warehouse_name)
 );
 
 CREATE TABLE customers(
