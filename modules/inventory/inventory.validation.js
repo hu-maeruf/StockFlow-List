@@ -58,3 +58,24 @@ export const validateGetInventory = (query, orgId) => {
 
   return { values, placeholderSql }
 }
+
+export const validateTransfer = (source_ware_id, destination_ware_id, product_id, quantity) => {
+
+  if (!product_id || !source_ware_id || !destination_ware_id || !quantity) {
+    throw new AppError(400, "source_ware_id, destination_ware_id, product_id and quantity are required");
+  }
+
+  if (!Number.isInteger(product_id) || !Number.isInteger(source_ware_id) || !Number.isInteger(destination_ware_id) || !Number.isInteger(quantity)) {
+    throw new AppError(400, "source_ware_id, destination_ware_id, product_id and quantity should be Integer");
+  }
+
+  if (product_id <= 0 || source_ware_id <= 0 || destination_ware_id <= 0 || quantity <= 0) {
+    throw new AppError(400, "source_ware_id, destination_ware_id, product_id and quantity should be greater than 0");
+  }
+
+  if (product_id > MAX_INT || source_ware_id > MAX_INT || destination_ware_id > MAX_INT || quantity > MAX_INT) {
+    throw new AppError(400, "source_ware_id, destination_ware_id or product_id or quantity is too large");
+  }
+
+  return { source_ware_id, destination_ware_id, product_id, quantity }
+}
