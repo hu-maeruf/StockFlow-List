@@ -25,4 +25,6 @@ CREATE TABLE inventory_movements(
 
 CREATE INDEX idx_inventory_org ON inventory (organization_id);
 
+CREATE INDEX idx_inv_movement_org on inventory_movements (organization_id, created_at);
+
 COMMIT;
