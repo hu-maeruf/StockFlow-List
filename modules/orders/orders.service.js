@@ -145,3 +145,72 @@ export const addOrder = async (
     client.release();
   }
 };
+
+export const reserveOrder = async (orgId, orderId) => {
+  const client = await db.connect();
+  try {
+    client.query("BEGIN");
+    const order = await client.query(
+      "SELECT o.order_status, oi.quantity, oi.product_id, oi.warehouse_id FROM orders AS o JOIN order_items AS oi ON o.order_id = oi.order_id WHERE organization_id = $1 AND o.order_id = $2 FOR UPDATE OF o",
+      [orgId, orderId],
+    );
+
+    if (order.rowCount === 0) {
+      throw new AppError(404, "Order Not Found");
+    }
+
+    const { quantity, product_id, warehouse_id } = order.rows[0];
+
+    if (order.rows[0].order_status !== "draft") {
+      throw new AppError(400, "Couldn't reserve the order");
+    }
+
+    const { rows } = await client.query(
+      "UPDATE orders SET order_status = $3 WHERE organization_id = $1 AND order_id = $2 RETURNING order_status",
+      [orgId, orderId, "reserved"],
+    );
+
+    const { order_status } = rows[0];
+
+    const inventory = await client.query(
+      "SELECT quantity_on_hand - quantity_reserved as quantity_available FROM inventory WHERE organization_id = $1 AND product_id = $2 AND warehouse_id = $3 FOR UPDATE",
+      [orgId, product_id, warehouse_id],
+    );
+
+    if (inventory.rowCount === 0) {
+      throw new AppError(404, "Inventory Not Found");
+    }
+
+    const { quantity_available } = inventory.rows[0];
+
+    if (quantity_available < quantity) {
+      throw new AppError(400, "Not enough qunatity");
+    }
+
+    await client.query(
+      "UPDATE inventory SET quantity_reserved = quantity_reserved + $4 WHERE organization_id = $1 AND product_id = $2 AND warehouse_id = $3 AND quantity_on_hand - quantity_reserved >= $4",
+      [orgId, product_id, warehouse_id, quantity],
+    );
+
+    await client.query(
+      "INSERT INTO inventory_movements (organization_id, product_id, warehouse_id, tr_type, quantity) VALUES ($1, $2, $3, $4, $5)",
+      [orgId, product_id, warehouse_id, "reservation", quantity],
+    );
+
+    await client.query("COMMIT");
+    return [
+      {
+        orderId,
+        warehouse_id,
+        product_id,
+        order_status,
+        quantity,
+      },
+    ];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};
