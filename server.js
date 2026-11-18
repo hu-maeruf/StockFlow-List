@@ -1,6 +1,8 @@
-import app from "./app.js"
-import { env } from "./config/env.js"
+import app from "./app.js";
+import { env } from "./config/env.js";
+import { checkExpire } from "./jobs/expireReservations.js";
 
 app.listen(env.PORT, () => {
-  console.log(`Listening on port ${env.PORT}`)
-})
+  checkExpire();
+  console.log(`Listening on port ${env.PORT}`);
+});
