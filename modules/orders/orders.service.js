@@ -1,5 +1,6 @@
 import db from "../../config/db.js";
 import AppError from "../../utils/AppError.js";
+import { env } from "../../config/env.js";
 
 const MAX_TOTAL = 9999999999999.99;
 export const addOrder = async (
@@ -166,8 +167,8 @@ export const reserveOrder = async (orgId, orderId) => {
     }
 
     const { rows } = await client.query(
-      "UPDATE orders SET order_status = $3 WHERE organization_id = $1 AND order_id = $2 RETURNING order_status",
-      [orgId, orderId, "reserved"],
+      "UPDATE orders SET order_status = $3, reservation_expires_at = now() + make_interval(mins => $4::int) WHERE organization_id = $1 AND order_id = $2 RETURNING order_status",
+      [orgId, orderId, "reserved", env.RESERVATION_TTL_MINUTES],
     );
 
     const { order_status } = rows[0];

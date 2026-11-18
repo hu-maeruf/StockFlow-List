@@ -44,7 +44,7 @@ export const postOrders = async (req, res) => {
 
     console.error(error.message);
     return res.status(500).json({
-      message: "Unexpected Error Occurred ",
+      message: "Unexpected Error Occurred",
     });
   }
 };
