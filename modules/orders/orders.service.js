@@ -215,3 +215,40 @@ export const reserveOrder = async (orgId, orderId) => {
     client.release();
   }
 };
+
+export const confOrder = async (orgId, order_id) => {
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    const order = await client.query(
+      "SELECT order_status FROM orders WHERE organization_id = $1 AND order_id = $2 FOR UPDATE",
+      [orgId, order_id],
+    );
+
+    if (order.rowCount === 0) {
+      throw new AppError(404, "Order Not Found");
+    }
+
+    if (order.rows[0].order_status !== "reserved") {
+      throw new AppError(
+        409,
+        `Order is ${order.rows[0].order_status}, not confirmable`,
+      );
+    }
+    const updated = await client.query(
+      "UPDATE orders SET order_status = $3 WHERE organization_id = $1 AND order_id = $2 AND order_status = 'reserved' AND reservation_expires_at > now()",
+      [orgId, order_id, "confirmed"],
+    );
+
+    if (updated.rowCount === 0) {
+      throw new AppError(409, "Reservation has expired");
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};
