@@ -19,7 +19,8 @@ CREATE TABLE order_items(
   product_id INT NOT NULL REFERENCES products(product_id),
   warehouse_id INT NOT NULL REFERENCES warehouses(warehouse_id),
   quantity INT NOT NULL CHECK (quantity > 0),
-  unit_price DECIMAL(15, 2) NOT NULL CHECK (unit_price > 0)
+  unit_price DECIMAL(15, 2) NOT NULL CHECK (unit_price > 0),
+  UNIQUE (order_id, product_id, warehouse_id)
 );
 
 COMMIT;
