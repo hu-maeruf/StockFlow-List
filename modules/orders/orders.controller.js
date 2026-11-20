@@ -7,22 +7,18 @@ export const postOrders = async (req, res) => {
   try {
     const idempotency_key = Validateidem(req.headers);
     reqBody(req);
-    const { customer_id, product_id, warehouse_id, quantity } = req.body;
-    const input = validatePostOrder(
-      customer_id,
-      product_id,
-      warehouse_id,
-      quantity,
+    const input = req.body;
+    const { customer_id, orders } = validatePostOrder(
+      input.customer_id,
+      input.items,
     );
 
     const order = await addOrder(
-      input.customer_id,
-      input.product_id,
-      input.warehouse_id,
-      input.quantity,
-      idempotency_key,
       req.orgID,
       req.user.userID,
+      idempotency_key,
+      customer_id,
+      orders,
     );
 
     return res.status(201).json({
@@ -37,8 +33,7 @@ export const postOrders = async (req, res) => {
 
     if (error.code === "23505") {
       return res.status(409).json({
-        message:
-          "Idempotency key conflict: This key was already used for a different request payload 1",
+        message: "Duplicate product and warehouse in one order",
       });
     }
 
