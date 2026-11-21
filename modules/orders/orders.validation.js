@@ -78,7 +78,7 @@ export const validatePostOrder = (cust_id, items) => {
   if (!Array.isArray(items)) {
     throw new AppError(
       400,
-      "{customer_id: id, items: [product_id: id, warehouse_id: id, quantity: quantity]} format is required",
+      "{customer_id: id, items: [{product_id: id, warehouse_id: id, quantity: quantity}]} format is required",
     );
   }
 

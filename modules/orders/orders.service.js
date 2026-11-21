@@ -6,7 +6,7 @@ const MAX_TOTAL = 9999999999999.99;
 
 function extractId(item) {
   const cont = [];
-  for (const i = 0; i < item.length; i++) {
+  for (let i = 0; i < item.length; i++) {
     cont.push(`$${i + 1}`);
   }
   return cont;
@@ -101,7 +101,7 @@ async function checkInventory(client, orgId, items, product) {
         item.warehouse_id === inv.warehouse_id,
     );
 
-    if (!temp) {
+    if (temp.length === 0) {
       throw new AppError(400, "Inventory Not Found");
     }
 
@@ -165,7 +165,7 @@ export const addOrder = async (
         [orgId, idempotency_key],
       );
 
-    const returnExistingOrder = async (result, cust_id) => {
+    const returnExistingOrder = async (result, customer_id) => {
       // ON CONFLICT handles the race where the lookup finds nothing, but another request inserts that key before this request reaches its own insert.
       if (result.rowCount === 0) {
         throw new Error(
@@ -291,9 +291,9 @@ export const addOrder = async (
 export const reserveOrder = async (orgId, orderId) => {
   const client = await db.connect();
   try {
-    client.query("BEGIN");
+    await client.query("BEGIN");
     const order = await client.query(
-      "SELECT o.order_status, oi.quantity, oi.product_id, oi.warehouse_id FROM orders AS o JOIN order_items AS oi ON o.order_id = oi.order_id WHERE organization_id = $1 AND o.order_id = $2 FOR UPDATE OF o",
+      "SELECT order_status FROM orders WHERE organization_id = $1 AND order_id = $2 FOR UPDATE",
       [orgId, orderId],
     );
 
@@ -301,54 +301,98 @@ export const reserveOrder = async (orgId, orderId) => {
       throw new AppError(404, "Order Not Found");
     }
 
-    const { quantity, product_id, warehouse_id } = order.rows[0];
-
     if (order.rows[0].order_status !== "draft") {
       throw new AppError(400, "Couldn't reserve the order");
     }
 
-    const { rows } = await client.query(
-      "UPDATE orders SET order_status = $3, reservation_expires_at = now() + make_interval(mins => $4::int) WHERE organization_id = $1 AND order_id = $2 RETURNING order_status",
-      [orgId, orderId, "reserved", env.RESERVATION_TTL_MINUTES],
+    const orderItems = await client.query(
+      "SELECT product_id, warehouse_id, quantity FROM order_items WHERE order_id = $1 ORDER BY product_id, warehouse_id",
+      [orderId],
     );
 
-    const { order_status } = rows[0];
+    if (orderItems.rowCount === 0) {
+      throw new AppError(400, "Order has no items to reserve");
+    }
+
+    const inventoryConditions = [];
+    const inventoryValues = [];
+    for (const [index, item] of orderItems.rows.entries()) {
+      inventoryConditions.push(
+        `(product_id = $${2 * index + 1} AND warehouse_id = $${2 * index + 2})`,
+      );
+      inventoryValues.push(item.product_id, item.warehouse_id);
+    }
+    inventoryValues.push(orgId);
 
     const inventory = await client.query(
-      "SELECT quantity_on_hand - quantity_reserved as quantity_available FROM inventory WHERE organization_id = $1 AND product_id = $2 AND warehouse_id = $3 FOR UPDATE",
-      [orgId, product_id, warehouse_id],
+      `SELECT product_id, warehouse_id, quantity_on_hand, quantity_reserved FROM inventory WHERE (${inventoryConditions.join(" OR ")}) AND organization_id = $${inventoryValues.length} ORDER BY inventory_id FOR UPDATE`,
+      inventoryValues,
     );
 
-    if (inventory.rowCount === 0) {
+    const inventoryByItem = new Map(
+      inventory.rows.map((item) => [
+        `${item.product_id}:${item.warehouse_id}`,
+        item,
+      ]),
+    );
+    const missingInventory = orderItems.rows.filter(
+      (item) => !inventoryByItem.has(`${item.product_id}:${item.warehouse_id}`),
+    );
+    if (missingInventory.length > 0) {
       throw new AppError(404, "Inventory Not Found");
     }
 
-    const { quantity_available } = inventory.rows[0];
-
-    if (quantity_available < quantity) {
-      throw new AppError(400, "Not enough qunatity");
+    for (const item of orderItems.rows) {
+      const stock = inventoryByItem.get(
+        `${item.product_id}:${item.warehouse_id}`,
+      );
+      const quantityAvailable =
+        stock.quantity_on_hand - stock.quantity_reserved;
+      if (quantityAvailable < item.quantity) {
+        throw new AppError(
+          400,
+          `Not enough quantity for product ${item.product_id} in warehouse ${item.warehouse_id}`,
+        );
+      }
     }
 
-    await client.query(
-      "UPDATE inventory SET quantity_reserved = quantity_reserved + $4 WHERE organization_id = $1 AND product_id = $2 AND warehouse_id = $3 AND quantity_on_hand - quantity_reserved >= $4",
-      [orgId, product_id, warehouse_id, quantity],
-    );
+    for (const item of orderItems.rows) {
+      const updatedInventory = await client.query(
+        "UPDATE inventory SET quantity_reserved = quantity_reserved + $4 WHERE organization_id = $1 AND product_id = $2 AND warehouse_id = $3 AND quantity_on_hand - quantity_reserved >= $4",
+        [orgId, item.product_id, item.warehouse_id, item.quantity],
+      );
+      if (updatedInventory.rowCount !== 1) {
+        throw new AppError(400, "Not enough quantity");
+      }
 
-    await client.query(
-      "INSERT INTO inventory_movements (organization_id, product_id, warehouse_id, tr_type, quantity) VALUES ($1, $2, $3, $4, $5)",
-      [orgId, product_id, warehouse_id, "reservation", quantity],
+      await client.query(
+        "INSERT INTO inventory_movements (organization_id, product_id, warehouse_id, tr_type, quantity) VALUES ($1, $2, $3, $4, $5)",
+        [
+          orgId,
+          item.product_id,
+          item.warehouse_id,
+          "reservation",
+          item.quantity,
+        ],
+      );
+    }
+
+    const updatedOrder = await client.query(
+      "UPDATE orders SET order_status = $3, reservation_expires_at = now() + make_interval(mins => $4::int) WHERE organization_id = $1 AND order_id = $2 AND order_status = 'draft' RETURNING order_status",
+      [orgId, orderId, "reserved", env.RESERVATION_TTL_MINUTES],
     );
+    if (updatedOrder.rowCount !== 1) {
+      throw new AppError(400, "Couldn't reserve the order");
+    }
 
     await client.query("COMMIT");
-    return [
-      {
-        orderId,
-        warehouse_id,
-        product_id,
-        order_status,
-        quantity,
-      },
-    ];
+    return orderItems.rows.map((item) => ({
+      orderId,
+      warehouse_id: item.warehouse_id,
+      product_id: item.product_id,
+      order_status: updatedOrder.rows[0].order_status,
+      quantity: item.quantity,
+    }));
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
