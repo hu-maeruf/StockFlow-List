@@ -325,7 +325,7 @@ export const reserveOrder = async (orgId, orderId) => {
     inventoryValues.push(orgId);
 
     const inventory = await client.query(
-      `SELECT product_id, warehouse_id, quantity_on_hand, quantity_reserved FROM inventory WHERE (${inventoryConditions.join(" OR ")}) AND organization_id = $${inventoryValues.length} ORDER BY inventory_id FOR UPDATE`,
+      `SELECT product_id, warehouse_id, quantity_on_hand, quantity_reserved FROM inventory WHERE (${inventoryConditions.join(" OR ")}) AND organization_id = $${inventoryValues.length} ORDER BY warehouse_id ASC, inventory_id ASC FOR UPDATE`,
       inventoryValues,
     );
 
@@ -366,13 +366,14 @@ export const reserveOrder = async (orgId, orderId) => {
       }
 
       await client.query(
-        "INSERT INTO inventory_movements (organization_id, product_id, warehouse_id, tr_type, quantity) VALUES ($1, $2, $3, $4, $5)",
+        "INSERT INTO inventory_movements (organization_id, product_id, warehouse_id, tr_type, quantity, reference_id) VALUES ($1, $2, $3, $4, $5, $6)",
         [
           orgId,
           item.product_id,
           item.warehouse_id,
           "reservation",
           item.quantity,
+          orderId,
         ],
       );
     }
@@ -430,6 +431,126 @@ export const confOrder = async (orgId, order_id) => {
     }
 
     await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+export const cancelOrder = async (orgId, orderId) => {
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    const order = await client.query(
+      "SELECT order_status FROM orders WHERE organization_id = $1 AND order_id = $2 FOR UPDATE",
+      [orgId, orderId],
+    );
+
+    if (order.rowCount === 0) {
+      throw new AppError(404, "Order Not Found");
+    }
+
+    if (
+      order.rows[0].order_status === "fulfilled" ||
+      order.rows[0].order_status === "reservation_expired" ||
+      order.rows[0].order_status === "cancelled"
+    ) {
+      throw new AppError(400, "Couldn't cancel the order");
+    }
+
+    const orderItems = await client.query(
+      "SELECT product_id, warehouse_id, quantity FROM order_items WHERE order_id = $1 ORDER BY product_id, warehouse_id",
+      [orderId],
+    );
+
+    if (orderItems.rowCount === 0) {
+      throw new AppError(400, "Order has no items to cancel");
+    }
+
+    async function updateOrder(org_id, order_id, status) {
+      const updatedOrder = await client.query(
+        "UPDATE orders SET order_status = $3 WHERE organization_id = $1 AND order_id = $2 AND order_status = $4 RETURNING order_status",
+        [org_id, order_id, "cancelled", status],
+      );
+      return updatedOrder;
+    }
+
+    let updatedOrder;
+    if (order.rows[0].order_status === "draft") {
+      updatedOrder = await updateOrder(orgId, orderId, "draft");
+      if (updatedOrder.rowCount !== 1) {
+        throw new AppError(400, "Couldn't cancel the order");
+      }
+      await client.query("COMMIT");
+      return orderItems.rows.map((item) => ({
+        orderId,
+        warehouse_id: item.warehouse_id,
+        product_id: item.product_id,
+        order_status: updatedOrder.rows[0].order_status,
+        quantity: item.quantity,
+      }));
+    }
+
+    const inventory = await client.query(
+      "SELECT i.inventory_id, i.product_id, i.warehouse_id, i.quantity_reserved, oi.quantity FROM inventory AS i JOIN order_items AS oi ON oi.product_id = i.product_id AND oi.warehouse_id = i.warehouse_id WHERE i.organization_id = $1 AND oi.order_id = $2 ORDER BY i.warehouse_id ASC, i.inventory_id ASC FOR UPDATE OF i",
+      [orgId, orderId],
+    );
+
+    if (inventory.rowCount !== orderItems.rowCount) {
+      throw new AppError(404, "Inventory Not Found");
+    }
+
+    for (const item of inventory.rows) {
+      if (item.quantity_reserved < item.quantity) {
+        throw new AppError(
+          400,
+          `Not enough quantity for product ${item.product_id} in warehouse ${item.warehouse_id}`,
+        );
+      }
+    }
+
+    for (const item of inventory.rows) {
+      const updatedInventory = await client.query(
+        "UPDATE inventory SET quantity_reserved = quantity_reserved - $3, updated_at = now() WHERE organization_id = $1 AND inventory_id = $2 AND quantity_reserved >= $3",
+        [orgId, item.inventory_id, item.quantity],
+      );
+      if (updatedInventory.rowCount !== 1) {
+        throw new AppError(400, "Not enough quantity");
+      }
+
+      await client.query(
+        "INSERT INTO inventory_movements (organization_id, product_id, warehouse_id, tr_type, quantity, reference_id) VALUES ($1, $2, $3, $4, $5, $6)",
+        [
+          orgId,
+          item.product_id,
+          item.warehouse_id,
+          "reservation_release",
+          item.quantity,
+          orderId,
+        ],
+      );
+    }
+
+    if (order.rows[0].order_status === "reserved") {
+      updatedOrder = await updateOrder(orgId, orderId, "reserved");
+    } else if (order.rows[0].order_status === "confirmed") {
+      updatedOrder = await updateOrder(orgId, orderId, "confirmed");
+    }
+
+    if (updatedOrder.rowCount !== 1) {
+      throw new AppError(400, "Couldn't cancel the order");
+    }
+
+    await client.query("COMMIT");
+    return orderItems.rows.map((item) => ({
+      orderId,
+      warehouse_id: item.warehouse_id,
+      product_id: item.product_id,
+      order_status: updatedOrder.rows[0].order_status,
+      quantity: item.quantity,
+    }));
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

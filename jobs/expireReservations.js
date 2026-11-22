@@ -21,10 +21,39 @@ const addExpiry = async ({ order_id, organization_id }) => {
       throw new Error(`Order ${order_id} is reserved but has no items`);
     }
 
-    for (const item of order_items.rows) {
+    const orders = await client.query(
+      "SELECT order_id FROM orders WHERE organization_id = $1 AND order_id = $2 FOR UPDATE",
+      [organization_id, order_id],
+    );
+
+    if (orders.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return;
+    }
+
+    const updateOrder = await client.query(
+      "UPDATE orders SET order_status = $3 WHERE organization_id = $1 AND order_id = $2 AND order_status = $4",
+      [organization_id, order_id, "reservation_expired", "reserved"],
+    );
+
+    if (updateOrder.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return;
+    }
+
+    const inventory = await client.query(
+      "SELECT i.inventory_id, i.product_id, i.warehouse_id, oi.quantity FROM inventory AS i JOIN order_items AS oi ON oi.product_id = i.product_id AND oi.warehouse_id = i.warehouse_id WHERE i.organization_id = $1 AND oi.order_id = $2 ORDER BY i.warehouse_id ASC, i.inventory_id ASC FOR UPDATE OF i",
+      [organization_id, order_id],
+    );
+
+    if (inventory.rowCount !== order_items.rowCount) {
+      throw new Error(`inventory missing for order ${order_id}`);
+    }
+
+    for (const item of inventory.rows) {
       const inven = await client.query(
-        "UPDATE inventory SET quantity_reserved = quantity_reserved - $4, updated_at = now() WHERE organization_id = $1 AND product_id = $2 AND warehouse_id = $3 AND quantity_reserved >= $4 RETURNING quantity_reserved",
-        [organization_id, item.product_id, item.warehouse_id, item.quantity],
+        "UPDATE inventory SET quantity_reserved = quantity_reserved - $3, updated_at = now() WHERE organization_id = $1 AND inventory_id = $2 AND quantity_reserved >= $3 RETURNING quantity_reserved",
+        [organization_id, item.inventory_id, item.quantity],
       );
 
       if (inven.rowCount !== 1) {
@@ -42,15 +71,6 @@ const addExpiry = async ({ order_id, organization_id }) => {
           order_id,
         ],
       );
-    }
-    const orders = await client.query(
-      "UPDATE orders SET order_status = $3 WHERE organization_id = $1 AND order_id = $2 AND order_status = $4",
-      [organization_id, order_id, "reservation_expired", "reserved"],
-    );
-
-    if (orders.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return;
     }
 
     await client.query("COMMIT");

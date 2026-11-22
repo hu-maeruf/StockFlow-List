@@ -5,6 +5,7 @@ import {
   postOrders,
   reserveOrderByID,
   confirmOrder,
+  cancelOrderById,
 } from "./orders.controller.js";
 
 export const orderRoute = Router();
@@ -26,4 +27,11 @@ orderRoute.post(
   auth,
   requireRoleFromHeader("org_admin", "staff"),
   confirmOrder,
+);
+
+orderRoute.post(
+  "/orders/:orderId/cancel",
+  auth,
+  requireRoleFromHeader("org_admin", "staff"),
+  cancelOrderById,
 );
